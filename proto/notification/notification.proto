@@ -3,6 +3,7 @@ package notification;
 option go_package = "/notification";
 service NotificationService{
   rpc SendConfirmationEmail(ConfirmationMailRequest) returns (SuccessResponse);
+  rpc SendActivationEmail(ActivationMailRequest) returns (SuccessResponse);
 }
 
 message ConfirmationMailRequest{

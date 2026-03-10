@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	NotificationService_SendConfirmationEmail_FullMethodName = "/notification.NotificationService/SendConfirmationEmail"
+	NotificationService_SendActivationEmail_FullMethodName   = "/notification.NotificationService/SendActivationEmail"
 )
 
 // NotificationServiceClient is the client API for NotificationService service.
@@ -27,6 +28,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type NotificationServiceClient interface {
 	SendConfirmationEmail(ctx context.Context, in *ConfirmationMailRequest, opts ...grpc.CallOption) (*SuccessResponse, error)
+	SendActivationEmail(ctx context.Context, in *ActivationMailRequest, opts ...grpc.CallOption) (*SuccessResponse, error)
 }
 
 type notificationServiceClient struct {
@@ -47,11 +49,22 @@ func (c *notificationServiceClient) SendConfirmationEmail(ctx context.Context, i
 	return out, nil
 }
 
+func (c *notificationServiceClient) SendActivationEmail(ctx context.Context, in *ActivationMailRequest, opts ...grpc.CallOption) (*SuccessResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SuccessResponse)
+	err := c.cc.Invoke(ctx, NotificationService_SendActivationEmail_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // NotificationServiceServer is the server API for NotificationService service.
 // All implementations must embed UnimplementedNotificationServiceServer
 // for forward compatibility.
 type NotificationServiceServer interface {
 	SendConfirmationEmail(context.Context, *ConfirmationMailRequest) (*SuccessResponse, error)
+	SendActivationEmail(context.Context, *ActivationMailRequest) (*SuccessResponse, error)
 	mustEmbedUnimplementedNotificationServiceServer()
 }
 
@@ -64,6 +77,9 @@ type UnimplementedNotificationServiceServer struct{}
 
 func (UnimplementedNotificationServiceServer) SendConfirmationEmail(context.Context, *ConfirmationMailRequest) (*SuccessResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SendConfirmationEmail not implemented")
+}
+func (UnimplementedNotificationServiceServer) SendActivationEmail(context.Context, *ActivationMailRequest) (*SuccessResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SendActivationEmail not implemented")
 }
 func (UnimplementedNotificationServiceServer) mustEmbedUnimplementedNotificationServiceServer() {}
 func (UnimplementedNotificationServiceServer) testEmbeddedByValue()                             {}
@@ -104,6 +120,24 @@ func _NotificationService_SendConfirmationEmail_Handler(srv interface{}, ctx con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NotificationService_SendActivationEmail_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ActivationMailRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NotificationServiceServer).SendActivationEmail(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NotificationService_SendActivationEmail_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NotificationServiceServer).SendActivationEmail(ctx, req.(*ActivationMailRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // NotificationService_ServiceDesc is the grpc.ServiceDesc for NotificationService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -114,6 +148,10 @@ var NotificationService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SendConfirmationEmail",
 			Handler:    _NotificationService_SendConfirmationEmail_Handler,
+		},
+		{
+			MethodName: "SendActivationEmail",
+			Handler:    _NotificationService_SendActivationEmail_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

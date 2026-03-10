@@ -165,9 +165,10 @@ const file_notification_notification_proto_rawDesc = "" +
 	"\x0fSuccessResponse\x12\x1e\n" +
 	"\n" +
 	"successful\x18\x01 \x01(\bR\n" +
-	"successful2t\n" +
+	"successful2\xcf\x01\n" +
 	"\x13NotificationService\x12]\n" +
-	"\x15SendConfirmationEmail\x12%.notification.ConfirmationMailRequest\x1a\x1d.notification.SuccessResponseB\x0fZ\r/notificationb\x06proto3"
+	"\x15SendConfirmationEmail\x12%.notification.ConfirmationMailRequest\x1a\x1d.notification.SuccessResponse\x12Y\n" +
+	"\x13SendActivationEmail\x12#.notification.ActivationMailRequest\x1a\x1d.notification.SuccessResponseB\x0fZ\r/notificationb\x06proto3"
 
 var (
 	file_notification_notification_proto_rawDescOnce sync.Once
@@ -189,9 +190,11 @@ var file_notification_notification_proto_goTypes = []any{
 }
 var file_notification_notification_proto_depIdxs = []int32{
 	0, // 0: notification.NotificationService.SendConfirmationEmail:input_type -> notification.ConfirmationMailRequest
-	2, // 1: notification.NotificationService.SendConfirmationEmail:output_type -> notification.SuccessResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
+	1, // 1: notification.NotificationService.SendActivationEmail:input_type -> notification.ActivationMailRequest
+	2, // 2: notification.NotificationService.SendConfirmationEmail:output_type -> notification.SuccessResponse
+	2, // 3: notification.NotificationService.SendActivationEmail:output_type -> notification.SuccessResponse
+	2, // [2:4] is the sub-list for method output_type
+	0, // [0:2] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name

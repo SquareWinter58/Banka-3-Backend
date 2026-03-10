@@ -9,7 +9,7 @@ type Server struct {
 	notification.UnimplementedNotificationServiceServer
 }
 
-func (s *Server) SendEmail(ctx context.Context, req *notification.ConfirmationMailRequest)(*notification.SuccessResponse, error) {
+func (s *Server) SendConfirmationEmail(ctx context.Context, req *notification.ConfirmationMailRequest) (*notification.SuccessResponse, error) {
 	//email := req.Email
 
 	//todo implement logic for sending an email
@@ -18,4 +18,11 @@ func (s *Server) SendEmail(ctx context.Context, req *notification.ConfirmationMa
 		Successful: true,
 	}, nil
 
+}
+
+func (s *Server) SendActivationEmail(ctx context.Context, req *notification.ActivationMailRequest) (*notification.SuccessResponse, error) {
+	//todo implement logic for sending an email with link
+	return &notification.SuccessResponse{
+		Successful: true,
+	}, nil
 }
