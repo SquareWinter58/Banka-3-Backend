@@ -21,7 +21,7 @@ services:
       context: .
       dockerfile: cmd/user/Dockerfile
     ports:
-      - "50051:50051"
+      - "${USER_GRPC_PORT:-50051}:50051"
     environment:
       DATABASE_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
       GRPC_PORT: "50051"
@@ -35,7 +35,7 @@ services:
       context: .
       dockerfile: cmd/notification/Dockerfile
     ports:
-      - "50052:50051"
+      - "${NOTIFICATION_GRPC_PORT:-50052}:50051"
     environment:
       GRPC_PORT: "50051"
       FROM_EMAIL: "${FROM_EMAIL}"
