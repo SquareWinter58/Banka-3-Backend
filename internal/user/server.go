@@ -1,9 +1,10 @@
 package user
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
-	"encoding/hex"
+	"database/sql"
 	"errors"
 	"time"
 
@@ -19,12 +20,14 @@ type Server struct {
 	userpb.UnimplementedUserServiceServer
 	accessJwtSecret  string
 	refreshJwtSecret string
+	database         *sql.DB
 }
 
-func NewServer(accessJwtSecret string, refreshJwtSecret string) *Server {
+func NewServer(accessJwtSecret string, refreshJwtSecret string, database *sql.DB) *Server {
 	return &Server{
 		accessJwtSecret:  accessJwtSecret,
 		refreshJwtSecret: refreshJwtSecret,
+		database:         database,
 	}
 }
 
@@ -32,38 +35,55 @@ func (s *Server) GetEmployeeById(ctx context.Context, req *userpb.GetEmployeeByI
 	return nil, status.Error(codes.Unimplemented, "not implemented")
 }
 
-func generateRefreshToken() {}
-
-func generateAccessToken(userID uint64, secret string) (string, error) {
-
+func generateRefreshToken(email string, secret string) (string, error) {
 	claims := jwt.MapClaims{
-		"user_id": userID,
+		"user_id": email,
+		"exp":     time.Now().Add(time.Hour * 27 * 7).Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(secret))
+}
+
+func generateAccessToken(email string, secret string) (string, error) {
+	claims := jwt.MapClaims{
+		"user_id": email,
 		"exp":     time.Now().Add(time.Minute * 15).Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-
 	return token.SignedString([]byte(secret))
 }
 
 func (s *Server) Login(ctx context.Context, req *userpb.LoginRequest) (*userpb.LoginResponse, error) {
 	hasher := sha256.New()
 	hasher.Write([]byte(req.Password))
-	byteSlice := hasher.Sum(nil)
-	encodedHashString := hex.EncodeToString(byteSlice)
-	user := GetUserByEmail(req.Email)
-	if encodedHashString == user.hashedPassword {
-		accessToken, err := generateAccessToken(user.id, s.accessJwtSecret)
+	hashedPassword := hasher.Sum(nil)
+	println("encoded hash " + string(hashedPassword))
+	user, err := s.GetUserByEmail(req.Email)
+	if err != nil || user == nil {
+		return nil, err
+	}
+
+	if bytes.Equal(hashedPassword, user.hashedPassword) {
+		accessToken, err := generateAccessToken(user.email, s.accessJwtSecret)
+		if err != nil {
+			return nil, err
+		}
+
+		refreshToken, err := generateAccessToken(user.email, s.refreshJwtSecret)
 		if err != nil {
 			return nil, err
 		}
 
 		return &userpb.LoginResponse{
-			AccessToken: accessToken,
+			AccessToken:  accessToken,
+			RefreshToken: refreshToken,
 		}, nil
 	}
 
 	return &userpb.LoginResponse{
-		AccessToken: "",
+		AccessToken:  "",
+		RefreshToken: "",
 	}, errors.New("wrong creds")
 }
