@@ -21,9 +21,10 @@ func (m *MockSender) Send(to []string, subject string, body string) error {
 }
 
 // funkcija za kreiranje fake templejta
+
 func createFakeTemplate(path string, t *testing.T) {
 	t.Helper()
-	err := os.MkdirAll("templates", 0755)
+	err := os.MkdirAll("test-templates", 0755)
 	if err != nil {
 		t.Fatalf("failed to create templates dir: %v", err)
 	}
@@ -37,7 +38,7 @@ func createFakeTemplate(path string, t *testing.T) {
 // Cleanup templejte nakon testova
 func cleanupTemplates(t *testing.T) {
 	t.Helper()
-	err := os.RemoveAll("templates")
+	err := os.RemoveAll("test-templates")
 	if err != nil {
 		t.Fatalf("failed to cleanup templates: %v", err)
 	}
@@ -45,7 +46,7 @@ func cleanupTemplates(t *testing.T) {
 
 // TESTOVI ZA SENDCONIRMATIONEMAIL
 func TestSendConfirmationEmail_Success(t *testing.T) {
-	createFakeTemplate("templates/confirmation.html", t)
+	createFakeTemplate("test-templates/confirmation.html", t)
 	defer cleanupTemplates(t)
 
 	mock := &MockSender{ShouldFail: false}
@@ -62,7 +63,7 @@ func TestSendConfirmationEmail_Success(t *testing.T) {
 }
 
 func TestSendConfirmationEmail_Fail(t *testing.T) {
-	createFakeTemplate("templates/confirmation.html", t)
+	createFakeTemplate("test-templates/confirmation.html", t)
 	defer cleanupTemplates(t)
 
 	mock := &MockSender{ShouldFail: true}
@@ -77,7 +78,7 @@ func TestSendConfirmationEmail_Fail(t *testing.T) {
 
 // TESTOVI ZA SENDACTIVATIONEMAIL
 func TestSendActivationEmail_Success(t *testing.T) {
-	createFakeTemplate("templates/activation.html", t)
+	createFakeTemplate("test-templates/activation.html", t)
 	defer cleanupTemplates(t)
 
 	mock := &MockSender{ShouldFail: false}
@@ -94,7 +95,7 @@ func TestSendActivationEmail_Success(t *testing.T) {
 }
 
 func TestSendActivationEmail_Fail(t *testing.T) {
-	createFakeTemplate("templates/activation.html", t)
+	createFakeTemplate("test-templates/activation.html", t)
 	defer cleanupTemplates(t)
 
 	mock := &MockSender{ShouldFail: true}

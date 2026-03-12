@@ -87,6 +87,7 @@ func (s *Server) SendActivationEmail(ctx context.Context, req *notification.Acti
 	}
 
 	err = s.sender.Send(to, "Aktivirajte Banka 3 nalog", rendered.String()) //umesto smtp
+	//	err = sendHTMLEmail(to, "Aktivirajte Banka 3 nalog", rendered.String())
 	if err != nil {
 		log.Println("Couldn't send email:", err)
 		return &notification.SuccessResponse{Successful: false}, nil
