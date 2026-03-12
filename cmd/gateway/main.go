@@ -9,10 +9,15 @@ import (
 
 func main() {
 	router := gin.Default()
+
 	server, err := gateway.NewServer()
 	if err != nil {
-		log.Fatalf("Error connecting to services!")
+		log.Fatalf("Error connecting to services: %v", err)
 	}
+
 	gateway.SetupApi(router, server)
-	router.Run(":8080")
+
+	if err := router.Run(":8080"); err != nil {
+		log.Fatalf("gateway stopped: %v", err)
+	}
 }

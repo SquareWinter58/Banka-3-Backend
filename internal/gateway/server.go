@@ -1,50 +1,44 @@
 package gateway
 
 import (
-	"banka-raf/gen/notification"
-	"banka-raf/gen/user"
-	"time"
+	"os"
+
+	notificationpb "banka-raf/gen/notification"
+	userpb "banka-raf/gen/user"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 type Server struct {
-	userClient         user.UserServiceClient
-	notificationClient notification.NotificationServiceClient
-}
-
-func connectToNotification() (*notification.NotificationServiceClient, error) {
-	conn, err := grpc.NewClient("notification:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return nil, err
-	}
-	notificationClient := notification.NewNotificationServiceClient(conn)
-	return &notificationClient, nil
-}
-
-func connectToUser() (*user.UserServiceClient, error) {
-	conn, err := grpc.NewClient("user:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return nil, err
-	}
-	userClient := user.NewUserServiceClient(conn)
-	return &userClient, nil
+	UserClient         userpb.UserServiceClient
+	NotificationClient notificationpb.NotificationServiceClient
 }
 
 func NewServer() (*Server, error) {
-	// TODO: replace with docker healthchecks for otherservices
-	time.Sleep(time.Second * 3)
+	userAddr := os.Getenv("USER_GRPC_ADDR")
+	if userAddr == "" {
+		userAddr = "user:50051"
+	}
 
-	userClient, err := connectToUser()
+	notificationAddr := os.Getenv("NOTIFICATION_GRPC_ADDR")
+	if notificationAddr == "" {
+		notificationAddr = "notification:50051"
+	}
+
+	userConn, err := grpc.Dial(userAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
 	}
 
-	notificationClient, err := connectToNotification()
+	notificationConn, err := grpc.Dial(notificationAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
+		_ = userConn.Close()
 		return nil, err
 	}
 
-	return &Server{userClient: *userClient, notificationClient: *notificationClient}, nil
+	return &Server{
+		UserClient:         userpb.NewUserServiceClient(userConn),
+		NotificationClient: notificationpb.NewNotificationServiceClient(notificationConn),
+	}, nil
 }
