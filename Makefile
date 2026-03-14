@@ -4,7 +4,7 @@ export
 GO_IMAGE := golang:1.25
 GO_RUN   := docker run --rm -v $(PWD):/app -w /app $(GO_IMAGE)
 
-.PHONY: all up down down-v proto schema seed nuke lint lint-l build build-l test test-l fmt fmt-l
+.PHONY: all up down down-v proto schema seed nuke lint lint-l build build-l test test-l test-integration test-integration-l fmt fmt-l
 
 all: proto up schema seed
 
@@ -51,6 +51,12 @@ test:
 
 test-l:
 	go test -race ./...
+
+test-integration:
+	$(GO_RUN) go test -race -count=1 -tags=integration ./...
+
+test-integration-l:
+	go test -race -count=1 -tags=integration ./...
 
 fmt:
 	$(GO_RUN) gofmt -l -w .

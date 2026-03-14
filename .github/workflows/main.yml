@@ -52,6 +52,16 @@ jobs:
           go-version-file: go.mod
       - run: go build ./cmd/...
 
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go test -race -count=1 ./...
+
   schema-check:
     name: Schema check
     runs-on: ubuntu-latest
@@ -75,7 +85,7 @@ jobs:
         run: psql -f scripts/db/schema.sql
         env:
           PGHOST: localhost
-          PGPORT: 5432
+          PGPORT: "5432"
           PGUSER: banka
           PGPASSWORD: banka_secret
           PGDATABASE: banka
@@ -83,17 +93,63 @@ jobs:
         run: psql -f scripts/db/seed.sql
         env:
           PGHOST: localhost
-          PGPORT: 5432
+          PGPORT: "5432"
           PGUSER: banka
           PGPASSWORD: banka_secret
           PGDATABASE: banka
 
-  test:
-    name: Tests
+  integration-test:
+    name: Integration tests
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: banka
+          POSTGRES_PASSWORD: banka_secret
+          POSTGRES_DB: banka
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U banka"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go test -race ./...
+      - name: Apply schema
+        run: psql -f scripts/db/schema.sql
+        env:
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGUSER: banka
+          PGPASSWORD: banka_secret
+          PGDATABASE: banka
+      - name: Apply seed
+        run: psql -f scripts/db/seed.sql
+        env:
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGUSER: banka
+          PGPASSWORD: banka_secret
+          PGDATABASE: banka
+      - name: Run integration tests
+        run: go test -race -count=1 -tags=integration ./...
+        env:
+          DATABASE_URL: postgres://banka:banka_secret@localhost:5432/banka?sslmode=disable
+          ACCESS_JWT_SECRET: ci-test-access-secret
+          REFRESH_JWT_SECRET: ci-test-refresh-secret
+
+  docker-build:
+    name: Docker build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [user, notification, gateway]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build ${{ matrix.service }} image
+        run: docker build -f cmd/${{ matrix.service }}/Dockerfile .
