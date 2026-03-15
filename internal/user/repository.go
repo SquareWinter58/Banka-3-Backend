@@ -11,7 +11,6 @@ import (
 	"log"
 
 	"github.com/golang-jwt/jwt/v5"
-	"gorm.io/gorm"
 	"strconv"
 	"strings"
 )
@@ -202,33 +201,6 @@ func create_user_from_model[T Clients | Employees](user T, s *Server) error {
 	return nil
 }
 
-func get_user_by_id_from_model[T Clients | Employees | Employee_by_Id_response](user T, id int, s *Server) (*T, error) {
-	// LOBANJA
-	// Try to figure this shit out when you can be bothered
-	// meanwhile this function serves no purpose
-	var result *gorm.DB
-	switch any(user).(type) {
-	case Clients:
-		result = s.db_gorm.First(&user, id)
-
-	case Employee_by_Id_response:
-		result = s.db_gorm.Table("employees e").
-			Select("e.id, e.first_name, e.last_name, e.date_of_birth, e.gender, e.email, e.phone_number, e.address, e.username, e.position, e.active, e.department p.id AS Permission_id, p.name AS Permission_name").
-			Joins("JOIN employee_permissions ep ON e.id = ep.employee_id").
-			Joins("JOIN permissions p ON ep.permission_id = p.id").
-			Where("e.id = ?", id).
-			First(&user)
-
-	default:
-		return nil, errors.New("Function not called with supported types")
-	}
-	if result.Error != nil {
-		log.Printf(" Error in get_user_by_id: %v", result.Error)
-		return nil, result.Error
-	}
-	return &user, nil
-}
-
 func (s *Server) GetUserByID(id int64) (*Employee_by_Id_response, error) {
 	query := `select e.id, first_name, last_name, date_of_birth, gender, email, phone_number, address, username, position, department ,active, p.id, p.name   from employees e join employee_permissions ep on e.id = ep.employee_id join permissions p on ep.permission_id = p.id where e.id = 2`
 
@@ -295,12 +267,12 @@ func (s *Server) GetAllEmployees(email string, name string, last_name string, po
 			&emp.Position, &emp.Phone_number, &emp.Active,
 			&emp.Permission_id, &emp.Permission_name,
 		); err != nil {
-			return nil, fmt.Errorf("Failed reading in the values: %w", err)
+			return nil, fmt.Errorf("failed reading in the values: %w", err)
 		}
 		employees = append(employees, emp)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("Error: %w", err)
+		return nil, fmt.Errorf("error: %w", err)
 	}
 
 	return &employees, nil
