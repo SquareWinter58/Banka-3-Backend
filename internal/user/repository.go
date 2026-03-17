@@ -223,7 +223,7 @@ func (s *Server) GetUserByID(id int64) (*Employee_by_Id_response, error) {
 
 	// }
 	res := Employee_by_Id_response_temp{}
-	s.db_gorm.Raw("select e.id, e.first_name, p.name from employees e join employee_permissions ep on e.id = ep.employee_id join permissions p on ep.permission_id = p.id;").Scan(&res)
+	s.db_gorm.Raw("select e.id, e.first_name, e.last_name, e.email, e.position, e.phone_number, e.active, e.date_of_birth, e.gender, e.address, e.username, e.department, p.name from employees e join employee_permissions ep on e.id = ep.employee_id join permissions p on ep.permission_id = p.id").Scan(&res)
 	log.Println("Here's the fucking res", res)
 	if err != nil{
 		log.Println(err)

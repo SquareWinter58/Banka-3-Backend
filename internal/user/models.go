@@ -133,7 +133,18 @@ type (
 
 	Employee_by_Id_response_temp struct {
 		Id int
-		First_name string
+		First_name string `gorm:"column:first_name;type:varchar(100);not null"`
+		Last_name string `gorm:"column:last_name;type:varchar(100);not null"`
+
+		Email string `gorm:"column:email;type:varchar(255);not null"`
+		Position string `gorm:"column:position;type:varchar(100);not null"`
+		Phone_number string `gorm:"column:phone_number;type:boolean;not null"`
+		Active bool `gorm:"column:active;type:boolean;not null"`
+		Date_of_birth time.Time `gorm:"column:date_of_birth;type:date;not null"`
+		Gender string `gorm:"column:gender;type:varchar(1);not null"`
+		Address string `gorm:"column:address;type:varchar(100);not null"`
+		Username string `gorm:"column:username;type:varchar(100);not null"`
+		Department string `gorm:"column:department;type:varchar(100);not null"`
 		Name string `gorm:"column:name;type:varchar(100);not null"`
 		
 	}
