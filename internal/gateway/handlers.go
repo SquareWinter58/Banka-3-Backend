@@ -183,7 +183,7 @@ func (s *Server) GetClients(c *gin.Context) {
 		return
 	}
 
-	var clients []gin.H
+	clients := make([]gin.H, 0, len(resp.Clients))
 	for _, client := range resp.Clients {
 		clients = append(clients, clientResponse(client))
 	}

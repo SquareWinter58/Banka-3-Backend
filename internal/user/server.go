@@ -166,7 +166,7 @@ func (s *Server) GetClients(ctx context.Context, req *userpb.GetClientsRequest) 
 	}
 
 	var clientResponses []*userpb.Client
-	for _, client := range *clients {
+	for _, client := range clients {
 		clientResponses = append(clientResponses, mapClientToProto(client))
 	}
 
@@ -204,7 +204,7 @@ func (s *Server) UpdateClient(ctx context.Context, req *userpb.UpdateClientReque
 		client.Date_of_birth = time.Unix(req.DateOfBirth, 0)
 	}
 
-	err = s.UpdateClient_(&client)
+	err = s.UpdateClientRecord(&client)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrClientNotFound):

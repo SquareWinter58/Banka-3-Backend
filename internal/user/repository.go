@@ -241,7 +241,7 @@ func (s *Server) GetClientByID(id int64) (*Clients, error) {
 	return client, nil
 }
 
-func (s *Server) GetAllClients(firstName string, lastName string, email string) (*[]Clients, error) {
+func (s *Server) GetAllClients(firstName string, lastName string, email string) ([]Clients, error) {
 	query := `SELECT id, first_name, last_name, date_of_birth, gender, email, phone_number, address FROM clients`
 
 	var conditions []string
@@ -263,7 +263,7 @@ func (s *Server) GetAllClients(firstName string, lastName string, email string) 
 	if len(conditions) > 0 {
 		query += " WHERE " + strings.Join(conditions, " AND ")
 	}
-	query += " ORDER BY id"
+	query += " ORDER BY last_name ASC, first_name ASC"
 
 	rows, err := s.database.Query(query, args...)
 	if err != nil {
@@ -283,10 +283,10 @@ func (s *Server) GetAllClients(firstName string, lastName string, email string) 
 		return nil, fmt.Errorf("iterating clients: %w", err)
 	}
 
-	return &clients, nil
+	return clients, nil
 }
 
-func (s *Server) UpdateClient_(client *Clients) error {
+func (s *Server) UpdateClientRecord(client *Clients) error {
 	updates := map[string]any{}
 
 	if strings.TrimSpace(client.First_name) != "" {

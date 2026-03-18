@@ -21,7 +21,7 @@ func TestGetClientsWithoutFiltersReturnsExpectedRows(t *testing.T) {
 	date1 := time.Date(1990, 5, 20, 0, 0, 0, 0, time.UTC)
 	date2 := time.Date(1992, 6, 21, 0, 0, 0, 0, time.UTC)
 
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, first_name, last_name, date_of_birth, gender, email, phone_number, address FROM clients ORDER BY id`)).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, first_name, last_name, date_of_birth, gender, email, phone_number, address FROM clients ORDER BY last_name ASC, first_name ASC`)).
 		WillReturnRows(sqlmockClientRows().
 			AddRow(uint64(1), "Petar", "Petrovic", date1, "M", "petar@primer.raf", "+381645555555", "Njegoseva 25").
 			AddRow(uint64(2), "Jana", "Janic", date2, "F", "jana@primer.raf", "+381645555556", "Bulevar 1"))
@@ -48,7 +48,7 @@ func TestGetClientsWithFiltersBuildsExpectedSQL(t *testing.T) {
 
 	date := time.Date(1990, 5, 20, 0, 0, 0, 0, time.UTC)
 
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, first_name, last_name, date_of_birth, gender, email, phone_number, address FROM clients WHERE first_name = $1 AND last_name = $2 AND email = $3 ORDER BY id`)).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, first_name, last_name, date_of_birth, gender, email, phone_number, address FROM clients WHERE first_name = $1 AND last_name = $2 AND email = $3 ORDER BY last_name ASC, first_name ASC`)).
 		WithArgs("Petar", "Petrovic", "petar@primer.raf").
 		WillReturnRows(sqlmockClientRows().
 			AddRow(uint64(1), "Petar", "Petrovic", date, "M", "petar@primer.raf", "+381645555555", "Njegoseva 25"))
