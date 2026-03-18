@@ -29,6 +29,8 @@ func SetupApi(router *gin.Engine, server *Server) {
 	clients := api.Group("/clients")
 	{
 		clients.POST("", server.CreateClientAccount)
+		clients.GET("", server.GetClients)
+		clients.PUT("/:id", server.UpdateClient)
 	}
 
 	employees := api.Group("/employees")
@@ -153,6 +155,80 @@ func (s *Server) CreateClientAccount(c *gin.Context) {
 
 	c.JSON(http.StatusUnprocessableEntity, gin.H{
 		"valid": false,
+	})
+}
+
+func clientResponse(client *userpb.Client) gin.H {
+	return gin.H{
+		"id":            client.Id,
+		"first_name":    client.FirstName,
+		"last_name":     client.LastName,
+		"date_of_birth": client.DateOfBirth,
+		"gender":        client.Gender,
+		"email":         client.Email,
+		"phone_number":  client.PhoneNumber,
+		"address":       client.Address,
+	}
+}
+
+func (s *Server) GetClients(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+	defer cancel()
+
+	resp, err := s.UserClient.GetClients(ctx, &userpb.GetClientsRequest{
+		FirstName: c.Query("first_name"),
+		LastName:  c.Query("last_name"),
+		Email:     c.Query("email"),
+	})
+	if err != nil {
+		writeGRPCError(c, err)
+		return
+	}
+
+	clients := make([]gin.H, 0, len(resp.Clients))
+	for _, client := range resp.Clients {
+		clients = append(clients, clientResponse(client))
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"clients": clients,
+	})
+}
+
+func (s *Server) UpdateClient(c *gin.Context) {
+	var uri clientByIDURI
+	if err := c.ShouldBindUri(&uri); err != nil {
+		c.String(http.StatusBadRequest, "client id is required and must be a valid integer")
+		return
+	}
+
+	var req updateClientRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeBindError(c, err)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+	defer cancel()
+
+	resp, err := s.UserClient.UpdateClient(ctx, &userpb.UpdateClientRequest{
+		Id:          uri.ClientID,
+		FirstName:   req.FirstName,
+		LastName:    req.LastName,
+		DateOfBirth: req.DateOfBirth,
+		Gender:      req.Gender,
+		Email:       req.Email,
+		PhoneNumber: req.PhoneNumber,
+		Address:     req.Address,
+	})
+	if err != nil {
+		writeGRPCError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"valid":    resp.Valid,
+		"response": resp.Response,
 	})
 }
 
@@ -398,34 +474,6 @@ func (s *Server) UpdateEmployee(c *gin.Context) {
 		writeGRPCError(c, err)
 	}
 	c.JSON(http.StatusOK, resp)
-}
-
-func (s *Server) GetAllEmployees(c *gin.Context) {
-	var uri getEmployeesURI
-	if err := c.Bind(&uri); err != nil {
-		c.Status(http.StatusBadRequest)
-		return
-	}
-	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
-	defer cancel()
-
-	resp, err := s.UserClient.GetEmployees(ctx, &userpb.GetEmployeesRequest{
-		FirstName: uri.FirstName,
-		LastName:  uri.LastName,
-		Email:     uri.Email,
-		Position:  uri.Position,
-	})
-	if err != nil {
-		writeGRPCError(c, err)
-		return
-	}
-	if resp.Employees != nil {
-		c.JSON(http.StatusOK, resp.Employees)
-	} else {
-		dummy := make([]string, 0)
-		c.JSON(http.StatusOK, dummy)
-	}
-
 }
 
 func (s *Server) RequestPasswordReset(c *gin.Context) {
