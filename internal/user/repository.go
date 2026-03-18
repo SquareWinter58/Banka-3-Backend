@@ -198,32 +198,6 @@ func (s *Server) RevokeRefreshTokensByEmail(tx *sql.Tx, email string) error {
 	return nil
 }
 
-func (s *Server) ownerExists(ownerID int64) (bool, error) {
-	var exists bool
-	err := s.database.QueryRow(`SELECT EXISTS(SELECT 1 FROM clients WHERE id = $1)`, ownerID).Scan(&exists)
-	if err != nil {
-		return false, fmt.Errorf("checking owner existence: %w", err)
-	}
-	return exists, nil
-}
-
-func (s *Server) activityCodeExists(activityCodeID int64) (bool, error) {
-	var exists bool
-	err := s.database.QueryRow(`SELECT EXISTS(SELECT 1 FROM activity_codes WHERE id = $1)`, activityCodeID).Scan(&exists)
-	if err != nil {
-		return false, fmt.Errorf("checking activity code existence: %w", err)
-	}
-	return exists, nil
-}
-
-func (s *Server) companyExists(companyID int64) (bool, error) {
-	var exists bool
-	err := s.database.QueryRow(`SELECT EXISTS(SELECT 1 FROM companies WHERE id = $1)`, companyID).Scan(&exists)
-	if err != nil {
-		return false, fmt.Errorf("checking company existence: %w", err)
-	}
-	return exists, nil
-}
 
 func scanCompany(scanner interface {
 	Scan(dest ...any) error
