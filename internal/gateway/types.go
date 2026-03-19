@@ -103,7 +103,7 @@ type updateCompanyRequest struct {
 	OwnerID        int64  `json:"owner_id" binding:"required"`
 }
 
-type createPaymentRequest struct {
+type paymentRequest struct {
 	SenderAccount    string `json:"sender_account" binding:"required"`
 	RecipientAccount string `json:"recipient_account" binding:"required"`
 	RecipientName    string `json:"recipient_name" binding:"required"`
@@ -113,7 +113,7 @@ type createPaymentRequest struct {
 	Purpose          string `json:"purpose"`
 }
 
-type createTransferRequest struct {
+type transferRequest struct {
 	FromAccount string `json:"from_account" binding:"required"`
 	ToAccount   string `json:"to_account" binding:"required"`
 	Amount      int64  `json:"amount" binding:"required"`

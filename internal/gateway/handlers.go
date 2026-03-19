@@ -531,8 +531,18 @@ func (s *Server) ConfirmPasswordReset(c *gin.Context) {
 	}
 }
 func (s *Server) PayoutMoneyToOtherAccount(c *gin.Context) {
+	var req paymentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeBindError(c, err)
+		return
+	}
 	c.Status(http.StatusNotImplemented)
 }
 func (s *Server) TransferMoneyBetweenAccounts(c *gin.Context) {
+	var req transferRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeBindError(c, err)
+		return
+	}
 	c.Status(http.StatusNotImplemented)
 }

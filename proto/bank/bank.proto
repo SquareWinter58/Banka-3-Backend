@@ -7,12 +7,12 @@ import "google/protobuf/empty.proto";
 
 service BankService {
   rpc TransferMoneyBetweenAccounts(TransferRequest) returns (TransferResponse);
-  rpc PayoutMoneyToOtherAccount(PayoutRequest) returns (PayoutResponse);
+  rpc PayoutMoneyToOtherAccount(PaymentRequest) returns (PaymentResponse);
   rpc GetTransactions(google.protobuf.Empty) returns (GetTransactionsResponse);
 }
 
 
-message PayoutRequest{
+message PaymentRequest{
   string sender_account = 1;
   string recipient_account = 2;
   string recipient_name = 3;
@@ -22,7 +22,7 @@ message PayoutRequest{
   string purpose = 7;
 }
 
-message PayoutResponse{
+message PaymentResponse{
   string from_account = 1;
   string to_account = 2;
   int64 initial_amount =3;
