@@ -23,6 +23,8 @@ type (
 )
 
 // These are the enums which will be used by the models below
+//
+//goland:noinspection ALL
 const (
 	// ownet_type enum
 	Personal owner_type = "personal"

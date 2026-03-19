@@ -1,7 +1,6 @@
 package bank
 
 import (
-	"context"
 	"database/sql"
 	"errors"
 	"strings"
@@ -15,7 +14,7 @@ import (
 )
 
 const (
-	defaultNotificationURL = "notification:50051"
+// defaultNotificationURL = "notification:50051"
 )
 
 type Server struct {
@@ -82,7 +81,7 @@ func validateUpdateCompanyInput(id int64, name string, address string, ownerID i
 	return nil
 }
 
-func (s *Server) CreateCompany(ctx context.Context, req *userpb.CreateCompanyRequest) (*userpb.CreateCompanyResponse, error) {
+func (s *Server) CreateCompany(req *userpb.CreateCompanyRequest) (*userpb.CreateCompanyResponse, error) {
 	if err := validateCreateCompanyInput(req.RegisteredId, req.Name, req.TaxCode, req.Address, req.OwnerId); err != nil {
 		return nil, err
 	}
@@ -111,7 +110,7 @@ func (s *Server) CreateCompany(ctx context.Context, req *userpb.CreateCompanyReq
 	return &userpb.CreateCompanyResponse{Company: mapCompanyToProto(company)}, nil
 }
 
-func (s *Server) GetCompanyById(ctx context.Context, req *userpb.GetCompanyByIdRequest) (*userpb.GetCompanyByIdResponse, error) {
+func (s *Server) GetCompanyById(req *userpb.GetCompanyByIdRequest) (*userpb.GetCompanyByIdResponse, error) {
 	if req.Id <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "id must be greater than zero")
 	}
@@ -129,7 +128,7 @@ func (s *Server) GetCompanyById(ctx context.Context, req *userpb.GetCompanyByIdR
 	return &userpb.GetCompanyByIdResponse{Company: mapCompanyToProto(company)}, nil
 }
 
-func (s *Server) GetCompanies(ctx context.Context, req *userpb.GetCompaniesRequest) (*userpb.GetCompaniesResponse, error) {
+func (s *Server) GetCompanies() (*userpb.GetCompaniesResponse, error) {
 	companies, err := s.GetCompaniesRecords()
 	if err != nil {
 		return nil, status.Error(codes.Internal, "company listing failed")
@@ -143,7 +142,7 @@ func (s *Server) GetCompanies(ctx context.Context, req *userpb.GetCompaniesReque
 	return &userpb.GetCompaniesResponse{Companies: responseCompanies}, nil
 }
 
-func (s *Server) UpdateCompany(ctx context.Context, req *userpb.UpdateCompanyRequest) (*userpb.UpdateCompanyResponse, error) {
+func (s *Server) UpdateCompany(req *userpb.UpdateCompanyRequest) (*userpb.UpdateCompanyResponse, error) {
 	if err := validateUpdateCompanyInput(req.Id, req.Name, req.Address, req.OwnerId); err != nil {
 		return nil, err
 	}
