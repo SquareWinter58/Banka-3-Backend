@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"google.golang.org/grpc/metadata"
 
 	bankpb "github.com/RAF-SI-2025/Banka-3-Backend/gen/bank"
 	userpb "github.com/RAF-SI-2025/Banka-3-Backend/gen/user"
@@ -71,6 +72,14 @@ func SetupApi(router *gin.Engine, server *Server) {
 	accounts := api.Group("/accounts")
 	{
 		accounts.POST("", server.CreateAccount)
+	}
+
+	cards := api.Group("/cards")
+	{
+		cards.GET("", AuthenticatedMiddleware(server.UserClient), server.GetCards)
+		cards.POST("/request", AuthenticatedMiddleware(server.UserClient), server.RequestCard)
+		cards.GET("/confirm", server.ConfirmCard)
+		cards.PATCH("/:id/block", AuthenticatedMiddleware(server.UserClient), server.BlockCard)
 	}
 }
 
@@ -314,7 +323,7 @@ func (s *Server) CreateEmployeeAccount(c *gin.Context) {
 	c.JSON(http.StatusCreated, resp)
 }
 
-func companyResponse(company *userpb.Company) gin.H {
+func companyResponse(company *bankpb.Company) gin.H {
 	return gin.H{
 		"id":               company.Id,
 		"registered_id":    company.RegisteredId,
@@ -336,7 +345,7 @@ func (s *Server) CreateCompany(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
-	resp, err := s.UserClient.CreateCompany(ctx, &userpb.CreateCompanyRequest{
+	resp, err := s.BankClient.CreateCompany(ctx, &bankpb.CreateCompanyRequest{
 		RegisteredId:   req.RegisteredID,
 		Name:           req.Name,
 		TaxCode:        req.TaxCode,
@@ -362,7 +371,7 @@ func (s *Server) GetCompanyByID(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
-	resp, err := s.UserClient.GetCompanyById(ctx, &userpb.GetCompanyByIdRequest{
+	resp, err := s.BankClient.GetCompanyById(ctx, &bankpb.GetCompanyByIdRequest{
 		Id: uri.CompanyID,
 	})
 	if err != nil {
@@ -377,7 +386,7 @@ func (s *Server) GetCompanies(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
-	resp, err := s.UserClient.GetCompanies(ctx, &userpb.GetCompaniesRequest{})
+	resp, err := s.BankClient.GetCompanies(ctx, &bankpb.GetCompaniesRequest{})
 	if err != nil {
 		writeGRPCError(c, err)
 		return
@@ -409,7 +418,7 @@ func (s *Server) UpdateCompany(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
-	resp, err := s.UserClient.UpdateCompany(ctx, &userpb.UpdateCompanyRequest{
+	resp, err := s.BankClient.UpdateCompany(ctx, &bankpb.UpdateCompanyRequest{
 		Id:             uri.CompanyID,
 		Name:           req.Name,
 		ActivityCodeId: req.ActivityCodeID,
@@ -434,7 +443,7 @@ func (s *Server) CreateAccount(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
-	resp, err := s.UserClient.CreateAccount(ctx, &userpb.CreateAccountRequest{
+	resp, err := s.BankClient.CreateAccount(ctx, &bankpb.CreateAccountRequest{
 		Name:             req.Name,
 		Owner:            req.Owner,
 		Currency:         req.Currency,
@@ -621,6 +630,94 @@ func (s *Server) ConfirmPasswordReset(c *gin.Context) {
 	} else {
 		c.Status(http.StatusUnprocessableEntity)
 	}
+}
+
+func (s *Server) GetCards(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+	defer cancel()
+
+	resp, err := s.BankClient.GetCards(ctx, &bankpb.GetCardsRequest{})
+	if err != nil {
+		writeGRPCError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, resp.Cards)
+}
+
+func (s *Server) RequestCard(c *gin.Context) {
+	email, exists := c.Get("email")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user email not found in token"})
+		return
+	}
+
+	var req requestCardRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeBindError(c, err)
+		return
+	}
+
+	md := metadata.Pairs("user-email", email.(string))
+	ctx := metadata.NewOutgoingContext(c.Request.Context(), md)
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	resp, err := s.BankClient.RequestCard(ctx, &bankpb.RequestCardRequest{
+		AccountNumber: req.AccountNumber,
+		CardType:      req.CardType,
+		CardBrand:     req.CardBrand,
+	})
+
+	if err != nil {
+		writeGRPCError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusAccepted, resp)
+}
+
+func (s *Server) ConfirmCard(c *gin.Context) {
+	var query confirmCardQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		writeBindError(c, err)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+	defer cancel()
+
+	_, err := s.BankClient.ConfirmCard(ctx, &bankpb.ConfirmCardRequest{
+		Token: query.Token,
+	})
+	if err != nil {
+		writeGRPCError(c, err)
+		return
+	}
+
+	c.Status(http.StatusOK)
+}
+
+func (s *Server) BlockCard(c *gin.Context) {
+	var uri blockCardURI
+	if err := c.ShouldBindUri(&uri); err != nil {
+		c.String(http.StatusBadRequest, "card id is required and must be a valid integer")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+	defer cancel()
+
+	resp, err := s.BankClient.BlockCard(ctx, &bankpb.BlockCardRequest{
+		CardId: uri.CardID,
+	})
+	if err != nil {
+		writeGRPCError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, resp)
 }
 
 func (s *Server) GetPaymentRecipients(c *gin.Context) {

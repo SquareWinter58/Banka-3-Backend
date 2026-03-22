@@ -5,6 +5,17 @@ package bank;
 option go_package = "github.com/RAF-SI-2025/Banka-3-Backend/gen/bank";
 
 service BankService {
+  rpc CreateCompany(CreateCompanyRequest) returns (CreateCompanyResponse);
+  rpc GetCompanyById(GetCompanyByIdRequest) returns (GetCompanyByIdResponse);
+  rpc GetCompanies(GetCompaniesRequest) returns (GetCompaniesResponse);
+  rpc UpdateCompany(UpdateCompanyRequest) returns (UpdateCompanyResponse);
+
+  rpc CreateCard(CreateCardRequest) returns (CardResponse);
+  rpc RequestCard(RequestCardRequest) returns (RequestCardResponse);
+  rpc ConfirmCard(ConfirmCardRequest) returns (ConfirmCardResponse);
+  rpc GetCards(GetCardsRequest) returns (GetCardsResponse);
+  rpc BlockCard(BlockCardRequest) returns (BlockCardResponse);
+
   rpc GetPaymentRecipients(GetPaymentRecipientsRequest) returns (GetPaymentRecipientsResponse);
   rpc CreatePaymentRecipient(CreatePaymentRecipientRequest) returns (CreatePaymentRecipientResponse);
   rpc UpdatePaymentRecipient(UpdatePaymentRecipientRequest) returns (UpdatePaymentRecipientResponse);
@@ -13,6 +24,95 @@ service BankService {
   rpc GetTransactions(GetTransactionsRequest) returns (GetTransactionsResponse);
   rpc GetTransactionById(GetTransactionByIdRequest) returns (GetTransactionByIdResponse);
   rpc GenerateTransactionPdf(GenerateTransactionPdfRequest) returns (GenerateTransactionPdfResponse);
+
+  rpc CreateAccount(CreateAccountRequest) returns (CreateAccountResponse);
+}
+
+message CreateCardRequest {
+  string account_number = 1;
+  string card_type = 2;
+  string card_brand = 3;
+  string email = 4;
+}
+
+message RequestCardRequest {
+  string account_number = 1;
+  string card_type = 2;
+  string card_brand = 3;
+}
+
+message RequestCardResponse {
+  bool accepted = 1;
+}
+
+message ConfirmCardRequest {
+  string token = 1;
+}
+
+message ConfirmCardResponse {}
+
+message GetCardsRequest {}
+
+message GetCardsResponse {
+  repeated CardResponse cards = 1;
+}
+
+message BlockCardRequest {
+  int64 card_id = 1;
+}
+
+message BlockCardResponse {
+  bool success = 1;
+}
+
+message CardResponse {
+  string card_id = 1;
+  string card_number = 2;
+  string card_type = 3;
+  string card_brand = 4;
+  string creation_date = 5;
+  string expiration_date = 6;
+  string account_number = 7;
+  string cvv = 8;
+  int64 limit = 9;
+  string status = 10;
+}
+
+message Company {
+  int64 id = 1;
+  int64 registered_id = 2;
+  string name = 3;
+  int64 tax_code = 4;
+  int64 activity_code_id = 5;
+  string address = 6;
+  int64 owner_id = 7;
+}
+
+message CreateCompanyRequest {
+  int64 registered_id = 1;
+  string name = 2;
+  int64 tax_code = 3;
+  int64 activity_code_id = 4;
+  string address = 5;
+  int64 owner_id = 6;
+}
+
+message CreateCompanyResponse {
+  Company company = 1;
+}
+
+message GetCompanyByIdRequest {
+  int64 id = 1;
+}
+
+message GetCompanyByIdResponse {
+  Company company = 1;
+}
+
+message GetCompaniesRequest {}
+
+message GetCompaniesResponse {
+  repeated Company companies = 1;
 }
 
 message PaymentRecipient {
@@ -59,6 +159,17 @@ message DeletePaymentRecipientResponse {
   bool success = 1;
 }
 
+message UpdateCompanyRequest {
+  int64 id = 1;
+  string name = 3;
+  int64 activity_code_id = 5;
+  string address = 6;
+  int64 owner_id = 7;
+}
+
+message UpdateCompanyResponse {
+  Company company = 1;
+}
 message Transaction {
   int64 id = 1;
   string type = 2;
@@ -124,4 +235,23 @@ message GenerateTransactionPdfRequest {
 message GenerateTransactionPdfResponse {
   bytes pdf = 1;
   string file_name = 2;
+}
+
+message CreateAccountRequest {
+  string Name = 1;
+  int64 Owner = 2;
+  string Currency = 3;
+  string OwnerType = 4;
+  string AccountType = 5;
+  int64 MaintainanceCost = 6;
+  int64 DailyLimit = 7;
+  int64 MonthlyLimit = 8;
+  int64 CreatedBy = 9;
+  int64 ValidUntil = 10;
+}
+
+message CreateAccountResponse {
+  bool Valid = 1;
+  string AccountNumber = 2;
+  string Error = 3;
 }
