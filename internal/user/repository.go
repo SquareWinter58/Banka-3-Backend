@@ -559,6 +559,14 @@ func (s *Server) getEmployeeById(id int64) (*Employee, error) {
 	return &employee, nil
 }
 
+func (s *Server) deleteEmployee(id int64) error {
+	resp := s.db_gorm.Delete(&Employee{}, id)
+	if resp.RowsAffected == 0 {
+		return ErrEmployeeNotFound
+	}
+	return nil
+}
+
 func (s *Server) GetAllEmployees(email *string, name *string, lastName *string, position *string) ([]Employee, error) {
 	var employees []Employee
 	query := s.db_gorm.Model(&Employee{}).Preload("Permissions")
@@ -578,6 +586,8 @@ func (s *Server) GetAllEmployees(email *string, name *string, lastName *string, 
 	if position != nil && *position != "" {
 		query = query.Where("position = ?", *position)
 	}
+
+	query = query.Where("active = true")
 
 	err := query.Find(&employees).Error
 	if err != nil {

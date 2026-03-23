@@ -107,6 +107,17 @@ func (s *Server) GetEmployeeById(ctx context.Context, req *userpb.GetEmployeeByI
 	return resp.toProtobuf(), nil
 }
 
+func (s *Server) DeleteEmployee(ctx context.Context, req *userpb.DeleteEmployeeRequest) (*userpb.DeleteEmployeeResponse, error) {
+	err := s.deleteEmployee(req.Id)
+	if err != nil {
+		if errors.Is(err, ErrEmployeeNotFound) {
+			return nil, status.Error(codes.NotFound, "employee not found")
+		}
+		return nil, err
+	}
+	return &userpb.DeleteEmployeeResponse{Success: true}, nil
+}
+
 func (s *Server) GetEmployees(ctx context.Context, req *userpb.GetEmployeesRequest) (*userpb.GetEmployeesResponse, error) {
 	map_func := func(emp Employee) *userpb.GetEmployeesResponse_Employee {
 		return &userpb.GetEmployeesResponse_Employee{
@@ -574,7 +585,14 @@ func (s *Server) SetPasswordWithToken(ctx context.Context, req *userpb.SetPasswo
 		return nil, status.Error(codes.Internal, "token validation failed")
 	}
 
-	if err := s.UpdatePasswordByEmail(tx, email, hashValue(newPassword)); err != nil {
+	user, err := s.GetUserByEmail(email)
+	if err != nil || user == nil {
+		return nil, status.Error(codes.Internal, "user lookup failed")
+	}
+
+	hashedPassword := HashPassword(newPassword, user.salt)
+
+	if err := s.UpdatePasswordByEmail(tx, email, hashedPassword); err != nil {
 		return nil, status.Error(codes.Internal, "password update failed")
 	}
 
@@ -764,7 +782,7 @@ func (s *Server) CreateEmployeeAccount(ctx context.Context, req *userpb.CreateEm
 		Gender: req.Gender, Email: req.Email, Phone_number: req.PhoneNumber,
 		Address: req.Address, Username: req.Username, Position: req.Position,
 		Department: req.Department, Salt_password: salt,
-		Password: HashPassword(req.Password, salt)}
+		Password: []byte{}}
 
 	err := create_user_from_model(employee, s)
 
@@ -772,6 +790,15 @@ func (s *Server) CreateEmployeeAccount(ctx context.Context, req *userpb.CreateEm
 		log.Printf("Error in user creation%s", err.Error())
 		return nil, status.Error(codes.Internal, "Employee creation failed")
 	}
+
+	// Send activation email so the employee can set their own password
+	_, emailErr := s.RequestInitialPasswordSet(ctx, &userpb.PasswordActionRequest{
+		Email: req.Email,
+	})
+	if emailErr != nil {
+		log.Printf("Employee created but activation email failed: %s", emailErr.Error())
+	}
+
 	return employee.toProtobuf(), nil
 
 }

@@ -37,6 +37,7 @@ func SetupApi(router *gin.Engine, server *Server) {
 	{
 		employees.POST("", server.CreateEmployeeAccount)
 		employees.GET("/:id", server.GetEmployeeByID)
+		employees.DELETE("/:id", server.DeleteEmployeeByID)
 		employees.GET("", server.GetEmployees)
 		employees.PUT("/:id", server.UpdateEmployee)
 	}
@@ -395,20 +396,40 @@ func (s *Server) GetEmployeeByID(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"id":            resp.Id,
-		"first_name":    resp.FirstName,
-		"last_name":     resp.LastName,
-		"birth_date":    time.Unix(resp.BirthDate, 0).Format(time.DateOnly),
-		"gender":        resp.Gender,
-		"email":         resp.Email,
-		"phone_numbere": resp.PhoneNumber,
-		"address":       resp.PhoneNumber,
-		"username":      resp.Username,
-		"position":      resp.Position,
-		"department":    resp.Department,
-		"active":        resp.Active,
-		"permissions":   resp.Permissions,
+		"id":           resp.Id,
+		"first_name":   resp.FirstName,
+		"last_name":    resp.LastName,
+		"birth_date":   time.Unix(resp.BirthDate, 0).Format(time.DateOnly),
+		"gender":       resp.Gender,
+		"email":        resp.Email,
+		"phone_number": resp.PhoneNumber,
+		"address":      resp.Address,
+		"username":     resp.Username,
+		"position":     resp.Position,
+		"department":   resp.Department,
+		"active":       resp.Active,
+		"permissions":  resp.Permissions,
 	})
+}
+
+func (s *Server) DeleteEmployeeByID(c *gin.Context) {
+	var uri getEmployeeByIDURI
+	if err := c.ShouldBindUri(&uri); err != nil {
+		c.String(http.StatusBadRequest, "employee id is required and must be a valid integer")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+	defer cancel()
+
+	_, err := s.UserClient.DeleteEmployee(ctx, &userpb.DeleteEmployeeRequest{
+		Id: uri.EmployeeID,
+	})
+	if err != nil {
+		writeGRPCError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
 }
 
 func (s *Server) GetEmployees(c *gin.Context) {
