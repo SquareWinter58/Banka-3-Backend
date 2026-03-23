@@ -203,3 +203,13 @@ type transferRequest struct {
 	Amount      int64  `json:"amount" binding:"required"`
 	Description string `json:"description"`
 }
+
+type confirmTransferRequest struct { // ovo je za POST Confirm transfer - verifikacioni kod
+	TransferID int64  `json:"transfer_id" binding:"required"`
+	Code       string `json:"code" binding:"required"`
+}
+
+type getTransfersHistoryQuery struct { //ovo je za istoriju transfera jer se radi paginacijom
+	Page     int32 `form:"page"`
+	PageSize int32 `form:"page_size"`
+}

@@ -703,3 +703,170 @@ func (s *Server) getLoanByIDForClient(clientEmail string, loanID int64) (*loanVi
 func (s *Server) createLoanRequest(req *LoanRequest) error {
 	return s.db_gorm.Create(req).Error
 }
+
+func (s *Server) CreateTransfer(clientEmail, fromAccount, toAccount string, amount int64) (*Transfer, error) {
+
+	fromAcc, err := s.getOwnedAccountByNumber(clientEmail, fromAccount)
+	if err != nil {
+		return nil, err
+	}
+
+	toAcc, err := s.getOwnedAccountByNumber(clientEmail, toAccount)
+	if err != nil {
+		return nil, err
+	}
+
+	if fromAcc.Currency != toAcc.Currency {
+		return nil, errors.New("currency mismatch")
+	}
+
+	currency, err := s.getCurrencyByLabel(fromAcc.Currency)
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := s.database.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	row := tx.QueryRow(`
+		INSERT INTO transfers (
+			from_account,
+			to_account,
+			start_amount,
+			end_amount,
+			start_currency_id,
+			exchange_rate,
+			commission
+		)
+		VALUES ($1, $2, $3, $4, $5, NULL, 0)
+		RETURNING transaction_id, from_account, to_account,
+		          start_amount, end_amount,
+		          start_currency_id, exchange_rate,
+		          commission, timestamp
+	`, fromAccount, toAccount, amount, amount, currency.Id)
+
+	transfer := &Transfer{}
+	err = row.Scan(
+		&transfer.Transaction_id,
+		&transfer.From_account,
+		&transfer.To_account,
+		&transfer.Start_amount,
+		&transfer.End_amount,
+		&transfer.Start_currency_id,
+		&transfer.Exchange_rate,
+		&transfer.Commission,
+		&transfer.Timestamp,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return transfer, nil
+}
+
+func (s *Server) ConfirmTransfer(transferID int64, verificationCode string) error {
+
+	tx, err := s.database.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var transfer Transfer
+
+	err = tx.QueryRow(`
+		SELECT transaction_id, from_account, to_account, start_amount
+		FROM transfers
+		WHERE transaction_id = $1
+	`, transferID).Scan(
+		&transfer.Transaction_id,
+		&transfer.From_account,
+		&transfer.To_account,
+		&transfer.Start_amount,
+	)
+	if err != nil {
+		return err
+	}
+
+	amount := transfer.Start_amount
+
+	// skini pare (WITH CHECK)
+	res, err := tx.Exec(`
+		UPDATE accounts
+		SET balance = balance - $1
+		WHERE number = $2 AND balance >= $1
+	`, amount, transfer.From_account)
+	if err != nil {
+		return err
+	}
+
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return errors.New("insufficient funds")
+	}
+
+	// dodaj pare
+	_, err = tx.Exec(`
+		UPDATE accounts
+		SET balance = balance + $1
+		WHERE number = $2
+	`, amount, transfer.To_account)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func (s *Server) GetTransferHistory(clientEmail string, page, pageSize int32) ([]*Transfer, error) {
+
+	offset := (page - 1) * pageSize
+
+	rows, err := s.database.Query(`
+		SELECT t.transaction_id, t.from_account, t.to_account,
+		       t.start_amount, t.end_amount,
+		       t.start_currency_id, t.exchange_rate,
+		       t.commission, t.timestamp
+		FROM transfers t
+		JOIN accounts a ON t.from_account = a.number OR t.to_account = a.number
+		JOIN clients c ON a.owner = c.id
+		WHERE c.email = $1
+		ORDER BY t.timestamp DESC
+		LIMIT $2 OFFSET $3
+	`, clientEmail, pageSize, offset)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var transfers []*Transfer
+
+	for rows.Next() {
+		t := &Transfer{}
+		err := rows.Scan(
+			&t.Transaction_id,
+			&t.From_account,
+			&t.To_account,
+			&t.Start_amount,
+			&t.End_amount,
+			&t.Start_currency_id,
+			&t.Exchange_rate,
+			&t.Commission,
+			&t.Timestamp,
+		)
+		if err != nil {
+			return nil, err
+		}
+		transfers = append(transfers, t)
+	}
+
+	return transfers, nil
+}
