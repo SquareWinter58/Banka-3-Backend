@@ -88,6 +88,23 @@ type createEmployeeAccountRequest struct {
 	Password    string `json:"password"`
 }
 
+type createLoanRequestRequest struct {
+	AccountNumber   string  `json:"account_number" binding:"required"`
+	LoanType        string  `json:"loan_type" binding:"required"`
+	Amount          float64 `json:"amount" binding:"required"`
+	RepaymentPeriod int32   `json:"repayment_period" binding:"required"`
+	Currency        string  `json:"currency" binding:"required"`
+}
+
+type getLoansQuery struct {
+	LoanType      string `form:"loan_type"`
+	AccountNumber string `form:"account_number"`
+	Status        string `form:"status"`
+}
+
+type getLoanByNumberURI struct {
+	LoanNumber string `uri:"loanNumber" binding:"required"`
+}
 type createCompanyRequest struct {
 	RegisteredID   int64  `json:"registered_id" binding:"required"`
 	Name           string `json:"name" binding:"required"`
