@@ -706,6 +706,10 @@ func (s *Server) createLoanRequest(req *LoanRequest) error {
 
 func (s *Server) CreateTransfer(clientEmail, fromAccount, toAccount string, amount int64) (*Transfer, error) {
 
+	if fromAccount == toAccount {
+		return nil, errors.New("cannot transfer to same account")
+	}
+
 	fromAcc, err := s.getOwnedAccountByNumber(clientEmail, fromAccount)
 	if err != nil {
 		return nil, err
@@ -739,13 +743,14 @@ func (s *Server) CreateTransfer(clientEmail, fromAccount, toAccount string, amou
 			end_amount,
 			start_currency_id,
 			exchange_rate,
-			commission
+			commission,
+			status
 		)
-		VALUES ($1, $2, $3, $4, $5, NULL, 0)
+		VALUES ($1, $2, $3, $4, $5, NULL, 0, 'pending')
 		RETURNING transaction_id, from_account, to_account,
 		          start_amount, end_amount,
 		          start_currency_id, exchange_rate,
-		          commission, timestamp
+		          commission, timestamp, status
 	`, fromAccount, toAccount, amount, amount, currency.Id)
 
 	transfer := &Transfer{}
@@ -759,6 +764,7 @@ func (s *Server) CreateTransfer(clientEmail, fromAccount, toAccount string, amou
 		&transfer.Exchange_rate,
 		&transfer.Commission,
 		&transfer.Timestamp,
+		&transfer.Status,
 	)
 	if err != nil {
 		return nil, err
@@ -773,6 +779,10 @@ func (s *Server) CreateTransfer(clientEmail, fromAccount, toAccount string, amou
 
 func (s *Server) ConfirmTransfer(transferID int64, verificationCode string) error {
 
+	if verificationCode == "" {
+		return errors.New("verification code required")
+	}
+
 	tx, err := s.database.Begin()
 	if err != nil {
 		return err
@@ -782,7 +792,7 @@ func (s *Server) ConfirmTransfer(transferID int64, verificationCode string) erro
 	var transfer Transfer
 
 	err = tx.QueryRow(`
-		SELECT transaction_id, from_account, to_account, start_amount
+		SELECT transaction_id, from_account, to_account, start_amount, status
 		FROM transfers
 		WHERE transaction_id = $1
 	`, transferID).Scan(
@@ -790,14 +800,19 @@ func (s *Server) ConfirmTransfer(transferID int64, verificationCode string) erro
 		&transfer.From_account,
 		&transfer.To_account,
 		&transfer.Start_amount,
+		&transfer.Status,
 	)
 	if err != nil {
 		return err
 	}
 
+	if transfer.Status != "pending" {
+		return errors.New("transfer already processed")
+	}
+
 	amount := transfer.Start_amount
 
-	// skini pare (WITH CHECK)
+	// skini pare
 	res, err := tx.Exec(`
 		UPDATE accounts
 		SET balance = balance - $1
@@ -822,6 +837,16 @@ func (s *Server) ConfirmTransfer(transferID int64, verificationCode string) erro
 		return err
 	}
 
+	// update status
+	_, err = tx.Exec(`
+		UPDATE transfers
+		SET status = 'completed'
+		WHERE transaction_id = $1
+	`, transfer.Transaction_id)
+	if err != nil {
+		return err
+	}
+
 	return tx.Commit()
 }
 
@@ -833,7 +858,7 @@ func (s *Server) GetTransferHistory(clientEmail string, page, pageSize int32) ([
 		SELECT t.transaction_id, t.from_account, t.to_account,
 		       t.start_amount, t.end_amount,
 		       t.start_currency_id, t.exchange_rate,
-		       t.commission, t.timestamp
+		       t.commission, t.timestamp, t.status
 		FROM transfers t
 		JOIN accounts a ON t.from_account = a.number OR t.to_account = a.number
 		JOIN clients c ON a.owner = c.id
@@ -861,6 +886,7 @@ func (s *Server) GetTransferHistory(clientEmail string, page, pageSize int32) ([
 			&t.Exchange_rate,
 			&t.Commission,
 			&t.Timestamp,
+			&t.Status,
 		)
 		if err != nil {
 			return nil, err
