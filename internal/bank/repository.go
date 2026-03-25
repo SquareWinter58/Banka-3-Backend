@@ -92,7 +92,7 @@ func scanTransfer(scanner interface {
 		&transfer.Timestamp,
 	)
 	if err != nil {
-		log.Println("greska kod skeniranja transfera: ", err)
+		log.Println("error when scanning transfer: ", err)
 		return nil, err
 	}
 	if exchangeRate.Valid {
@@ -924,21 +924,17 @@ func (s *Server) CreateTransfer(fromAccount, toAccount string, amount int64) (*T
 	if fromAccount == toAccount {
 		return nil, errors.New("cannot transfer to same account")
 	}
-
 	fromAcc, err := s.GetAccountByNumberRecord(fromAccount)
 	if err != nil {
 		return nil, err
 	}
-
 	toAcc, err := s.GetAccountByNumberRecord(toAccount)
 	if err != nil {
 		return nil, err
 	}
-
 	if fromAcc.Currency != toAcc.Currency {
 		return nil, errors.New("currency mismatch")
 	}
-
 	currency, err := s.getCurrencyByLabel(fromAcc.Currency)
 	if err != nil {
 		return nil, err
@@ -947,35 +943,35 @@ func (s *Server) CreateTransfer(fromAccount, toAccount string, amount int64) (*T
 	if err != nil {
 		return nil, err
 	}
+	defer func() { _ = tx.Rollback() }()
+
 	if fromAcc.Balance < amount {
 		return nil, errors.New("insufficient funds")
 	}
-	if err := tx.Rollback(); err != nil {
-		log.Println("rollback failed:", err)
-	}
 	row := tx.QueryRow(`
-		INSERT INTO transfers (
-			from_account,
-			to_account,
-			start_amount,
-			end_amount,
-			start_currency_id,
-			exchange_rate,
-			commission,
-			status
-		)
-		VALUES ($1, $2, $3, $4, $5, NULL, 0, 'pending')
-		RETURNING transaction_id, from_account, to_account,
-		          start_amount, end_amount,
-		          start_currency_id, exchange_rate,
-		          commission, status, timestamp
-	`, fromAccount, toAccount, amount, amount, currency.Id)
-
+    INSERT INTO transfers (
+        from_account,
+        to_account,
+        start_amount,
+        end_amount,
+        start_currency_id,
+        exchange_rate,
+        commission,
+        status
+    )
+    VALUES ($1, $2, $3, $4, $5, NULL, 0, 'pending')
+    RETURNING transaction_id, from_account, to_account,
+              start_amount, end_amount,
+              start_currency_id, exchange_rate,
+              commission, status, timestamp
+`, fromAccount, toAccount, amount, amount, currency.Id)
 	transfer, err := scanTransfer(row)
 	if err != nil {
+		log.Println("greska u skeniranju transfera")
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
+		log.Println("greska u komitovanju")
 		return nil, err
 	}
 	return transfer, nil
@@ -989,12 +985,12 @@ func (s *Server) ConfirmTransfer(transferID int64, verificationCode string) erro
 
 	tx, err := s.database.Begin()
 	if err != nil {
+		log.Println("bank/server.go error when beginning transaction")
 		return err
 	}
-	if err := tx.Rollback(); err != nil {
-		log.Println("rollback failed:", err)
-	}
-
+	defer func() {
+		_ = tx.Rollback()
+	}()
 	var transfer Transfer
 
 	err = tx.QueryRow(`
@@ -1009,10 +1005,12 @@ func (s *Server) ConfirmTransfer(transferID int64, verificationCode string) erro
 		&transfer.Status,
 	)
 	if err != nil {
+		log.Println("bank/server.go error when executing query (ConfirmTransfer)")
 		return err
 	}
 
 	if transfer.Status != "pending" {
+		log.Println("bank/server.go transfer already processed (ConfirmTransfer)")
 		return errors.New("transfer already processed")
 	}
 
@@ -1030,6 +1028,7 @@ func (s *Server) ConfirmTransfer(transferID int64, verificationCode string) erro
 
 	rows, _ := res.RowsAffected()
 	if rows == 0 {
+		log.Println("bank/server.go insufficient funds (ConfirmTransfer)")
 		return errors.New("insufficient funds")
 	}
 
@@ -1040,6 +1039,7 @@ func (s *Server) ConfirmTransfer(transferID int64, verificationCode string) erro
 		WHERE number = $2
 	`, amount, transfer.To_account)
 	if err != nil {
+		log.Println("bank/server.go error when adding money (ConfirmTransfer)")
 		return err
 	}
 
@@ -1050,6 +1050,7 @@ func (s *Server) ConfirmTransfer(transferID int64, verificationCode string) erro
 		WHERE transaction_id = $1
 	`, transfer.Transaction_id)
 	if err != nil {
+		log.Println("bank/server.go error when updating status (ConfirmTransfer)")
 		return err
 	}
 
@@ -1078,6 +1079,7 @@ func (s *Server) GetTransferHistory(clientEmail string, page, pageSize int32) (*
 	}
 	defer func() {
 		if err := rows.Close(); err != nil {
+			log.Println("bank/server.go row close failed (GetTransferHistory)")
 			log.Println("rows close failed:", err)
 		}
 	}()
@@ -1101,11 +1103,12 @@ func (s *Server) GetTransferHistory(clientEmail string, page, pageSize int32) (*
 			ReferenceNumber: "",
 			Purpose:         "",
 			Status:          t.Status,
-			Timestamp:       t.Timestamp.String(),
+			Timestamp:       t.Timestamp.Format(time.RFC3339),
 		})
 	}
 
 	if err := rows.Err(); err != nil {
+		log.Println("bank/server.go got some error in rows (GetTransferHistory)")
 		return nil, err
 	}
 

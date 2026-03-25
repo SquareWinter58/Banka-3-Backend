@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"math"
 	"strconv"
 	"strings"
@@ -1362,18 +1363,22 @@ func (s *Server) TransferMoneyBetweenAccounts(
 		switch {
 		case strings.Contains(err.Error(), "same account"):
 			{
+				log.Println("bank/server.go: same account")
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}
 		case strings.Contains(err.Error(), "currency mismatch"):
 			{
+				log.Println("bank/server.go: currency mismatch")
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}
 		case strings.Contains(err.Error(), "insufficient funds"):
 			{
+				log.Println("bank/server.go: insufficient funds")
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}
 		default:
 			{
+				log.Println("bank/server.go: failed to create transfer")
 				return nil, status.Error(codes.Internal, "failed to create transfer")
 			}
 		}
@@ -1384,16 +1389,18 @@ func (s *Server) TransferMoneyBetweenAccounts(
 		switch {
 		case strings.Contains(err.Error(), "insufficient funds"):
 			{
+				log.Println("bank/server.go: insufficient funds")
 				return nil, status.Error(codes.FailedPrecondition, "insufficient funds")
 			}
 		default:
 			{
+				log.Println("bank/server.go: transfer confirmation failed")
 				return nil, status.Error(codes.Internal, "transfer confirmation failed")
 			}
 
 		}
 	}
-	res, err := &bankpb.TransferResponse{
+	res := &bankpb.TransferResponse{
 		FromAccount:     transfer.From_account,
 		ToAccount:       transfer.To_account,
 		InitialAmount:   transfer.Start_amount,
@@ -1405,9 +1412,6 @@ func (s *Server) TransferMoneyBetweenAccounts(
 		Purpose:         "",
 		Status:          "realized",
 		Timestamp:       fmt.Sprintf("%d", transfer.Timestamp.Unix()),
-	}, nil
-	if err != nil {
-		return nil, status.Error(codes.Internal, "failed to transfer money")
 	}
 	return res, nil
 }
