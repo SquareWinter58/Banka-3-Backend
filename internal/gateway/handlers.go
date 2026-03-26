@@ -59,7 +59,7 @@ func SetupApi(router *gin.Engine, server *Server) {
 		clients.PUT("/:id", server.UpdateClient)
 	}
 
-	employees := api.Group("/employees")
+	employees := api.Group("/employees", AuthenticatedMiddleware(server.UserClient))
 	{
 		employees.POST("", server.CreateEmployeeAccount)
 		employees.GET("/:employeeId", server.GetEmployeeByID)
@@ -107,7 +107,7 @@ func SetupApi(router *gin.Engine, server *Server) {
 		cards.PATCH("/:cardNumber/block", AuthenticatedMiddleware(server.UserClient), server.BlockCard)
 	}
 
-	api.GET("/exchange-rates", server.GetExchangeRates)
+	api.GET("/exchange-rates", AuthenticatedMiddleware(server.UserClient), server.GetExchangeRates)
 
 	exchange := api.Group("/exchange")
 	{
@@ -323,9 +323,7 @@ func (s *Server) GetClients(c *gin.Context) {
 		clients = append(clients, clientResponse(client))
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"clients": clients,
-	})
+	c.JSON(http.StatusOK, clients)
 }
 
 func (s *Server) UpdateClient(c *gin.Context) {
@@ -359,7 +357,21 @@ func (s *Server) UpdateClient(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, resp)
+	if !resp.Valid {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": resp.Response})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"id":            uri.ClientID,
+		"first_name":    req.FirstName,
+		"last_name":     req.LastName,
+		"date_of_birth": req.DateOfBirth,
+		"gender":        req.Gender,
+		"email":         req.Email,
+		"phone_number":  req.PhoneNumber,
+		"address":       req.Address,
+	})
 }
 
 func (s *Server) CreateEmployeeAccount(c *gin.Context) {
@@ -499,9 +511,7 @@ func (s *Server) GetCompanies(c *gin.Context) {
 		companies = append(companies, companyResponse(company))
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"companies": companies,
-	})
+	c.JSON(http.StatusOK, companies)
 }
 
 func (s *Server) UpdateCompany(c *gin.Context) {
@@ -612,7 +622,7 @@ func (s *Server) CreateAccount(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, detailResp.Account)
+	c.JSON(http.StatusCreated, accountResponse(detailResp.Account))
 }
 
 func (s *Server) GetEmployeeByID(c *gin.Context) {
@@ -832,6 +842,26 @@ func (s *Server) TransferMoneyBetweenAccounts(c *gin.Context) {
 	c.Status(http.StatusNotImplemented)
 }
 
+func accountResponse(a *bankpb.Account) gin.H {
+	return gin.H{
+		"account_number":  a.AccountNumber,
+		"account_name":    a.AccountName,
+		"owner_id":        a.OwnerId,
+		"balance":         a.Balance,
+		"available_balance": a.AvailableBalance,
+		"employee_id":     a.EmployeeId,
+		"creation_date":   time.Unix(a.CreationDate, 0).Format(time.RFC3339),
+		"expiration_date": time.Unix(a.ExpirationDate, 0).Format(time.RFC3339),
+		"currency":        a.Currency,
+		"status":          a.Status,
+		"account_type":    a.AccountType,
+		"daily_limit":     a.DailyLimit,
+		"monthly_limit":   a.MonthlyLimit,
+		"daily_spending":  a.DailySpending,
+		"monthly_spending": a.MonthlySpending,
+	}
+}
+
 func (s *Server) GetAccounts(c *gin.Context) {
 	var query getAccountsQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
@@ -856,9 +886,9 @@ func (s *Server) GetAccounts(c *gin.Context) {
 		return
 	}
 
-	accounts := resp.Accounts
-	if accounts == nil {
-		accounts = []*bankpb.Account{}
+	accounts := make([]gin.H, 0, len(resp.Accounts))
+	for _, a := range resp.Accounts {
+		accounts = append(accounts, accountResponse(a))
 	}
 
 	c.JSON(http.StatusOK, accounts)
@@ -886,7 +916,7 @@ func (s *Server) GetAccountByNumber(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, resp)
+	c.JSON(http.StatusOK, accountResponse(resp.Account))
 }
 
 func (s *Server) UpdateAccountName(c *gin.Context) {

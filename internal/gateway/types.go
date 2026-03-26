@@ -142,7 +142,7 @@ type createAccountRequest struct {
 	AccountType    string        `json:"account_type" binding:"required"`
 	Subtype        string        `json:"subtype" binding:"required"`
 	Currency       string        `json:"currency" binding:"required"`
-	InitialBalance float64       `json:"initial_balance"`
+	InitialBalance float64       `json:"initial_balance" binding:"required"`
 	DailyLimit     float64       `json:"daily_limit"`
 	MonthlyLimit   float64       `json:"monthly_limit"`
 	CreateCard     bool          `json:"create_card"`

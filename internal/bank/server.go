@@ -384,16 +384,13 @@ func (s *Server) BlockCard(_ context.Context, req *bankpb.BlockCardRequest) (*ba
 	var cardID int64
 
 	if req.CardNumber != "" {
-		// Look up card by number
 		card, err := s.GetCardByNumberRecord(req.CardNumber)
 		if err != nil {
 			return &bankpb.BlockCardResponse{Success: false}, status.Error(codes.NotFound, "card not found")
 		}
 		cardID = card.Id
-	} else if req.CardId > 0 {
-		cardID = req.CardId
 	} else {
-		return nil, status.Error(codes.InvalidArgument, "card_number or card_id is required")
+		return nil, status.Error(codes.InvalidArgument, "card_number is required")
 	}
 
 	err := s.BlockCardRecord(cardID)
