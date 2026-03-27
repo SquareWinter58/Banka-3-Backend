@@ -3,6 +3,7 @@ package gateway
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -1113,6 +1114,7 @@ func loanListResponse(resp *bankpb.GetLoansResponse) []gin.H {
 func (s *Server) GetLoans(c *gin.Context) {
 	var query getLoansQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
+		log.Printf("[GetLoans] ERROR: Invalid query parameters: %v", err)
 		writeBindError(c, err)
 		return
 	}
@@ -1121,10 +1123,13 @@ func (s *Server) GetLoans(c *gin.Context) {
 	defer cancel()
 
 	email := c.GetString("email")
+	log.Printf("[GetLoans] Request from user: %s, filters: loanType=%s, accountNumber=%s, status=%s",
+		email, query.LoanType, query.AccountNumber, query.Status)
 
 	// Try employee first; if not an employee, fall back to client view
 	_, err := s.UserClient.GetEmployeeByEmail(ctx, &userpb.GetEmployeeByEmailRequest{Email: email})
 	if err == nil {
+		log.Printf("[GetLoans] User %s is an employee, calling GetAllLoans", email)
 		// Employee: get all loans
 		resp, err := s.BankClient.GetAllLoans(ctx, &bankpb.GetAllLoansRequest{
 			LoanType:      query.LoanType,
@@ -1132,19 +1137,23 @@ func (s *Server) GetLoans(c *gin.Context) {
 			Status:        query.Status,
 		})
 		if err != nil {
+			log.Printf("[GetLoans] ERROR: GetAllLoans failed for employee %s: %v", email, err)
 			writeGRPCError(c, err)
 			return
 		}
+		log.Printf("[GetLoans] SUCCESS: Employee %s retrieved %d loans", email, len(resp.Loans))
 		c.JSON(http.StatusOK, loanListResponse(resp))
 		return
 	}
 
 	// If the user service returned something other than NotFound, it's a real error
 	if code := status.Code(err); code != codes.NotFound {
+		log.Printf("[GetLoans] ERROR: User service error for %s: %v", email, err)
 		writeGRPCError(c, err)
 		return
 	}
 
+	log.Printf("[GetLoans] User %s is a client, calling GetLoans", email)
 	// Client view
 	resp, err := s.BankClient.GetLoans(ctx, &bankpb.GetLoansRequest{
 		ClientEmail:   email,
@@ -1153,10 +1162,12 @@ func (s *Server) GetLoans(c *gin.Context) {
 		Status:        query.Status,
 	})
 	if err != nil {
+		log.Printf("[GetLoans] ERROR: GetLoans failed for client %s: %v", email, err)
 		writeGRPCError(c, err)
 		return
 	}
 
+	log.Printf("[GetLoans] SUCCESS: Client %s retrieved %d loans", email, len(resp.Loans))
 	c.JSON(http.StatusOK, loanListResponse(resp))
 }
 
